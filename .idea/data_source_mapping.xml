@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/database/migrations/20250523_init.sql" value="7d009221-a6f8-4784-ae73-dd51474be088" />
+  </component>
+</project>

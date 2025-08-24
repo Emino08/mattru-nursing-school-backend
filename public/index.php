@@ -1,30 +1,15 @@
 <?php
-//use Psr\Http\Message\ResponseInterface as Response;
-//use Psr\Http\Message\ServerRequestInterface as Request;
-//use Slim\Factory\AppFactory;
-//use DI\Container;
-//
-//require __DIR__ . '/../vendor/autoload.php';
-//
-//$container = new Container();
-//AppFactory::setContainer($container);
-//$app = AppFactory::create();
-//
-//$container->set('settings', require __DIR__ . '/../config/database.php');
-//require __DIR__ . '/../src/Routes/api.php';
-//
-//$app->addErrorMiddleware(true, true, true);
-//$app->run();
-
-
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
 use DI\Container;
 
 require __DIR__ . '/../vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
-// Load environment variables
+// Enable PHP error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->safeLoad();
 
@@ -33,17 +18,18 @@ $container = new Container();
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-// Add middleware
+
+// Add other middleware
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
-// Set base path if needed
- $app->setBasePath('/api');
+// Set base path
+//$app->setBasePath('/api');
 
 // Load database settings
 $container->set('settings', require __DIR__ . '/../config/database.php');
 
-// Set up container definitions for models and controllers
+// Container definitions (PDO, models, controllers remain the same)
 $container->set(PDO::class, function () use ($container) {
     $settings = $container->get('settings')['db'];
     $dsn = "mysql:host={$settings['host']};port={$settings['port']};dbname={$settings['name']};charset=utf8mb4";
@@ -67,7 +53,23 @@ $container->set(App\Controllers\AuthController::class, function ($container) {
         $container->get(App\Models\UserProfile::class)
     );
 });
-// Include routes - now $app is defined before including the routes file
+
+// Add CORS middleware FIRST (before other middleware)
+$app->add(function ($request, $handler) {
+    $response = $handler->handle($request);
+    return $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+        ->withHeader('Access-Control-Allow-Credentials', 'true');
+});
+
+// Handle preflight OPTIONS requests for all routes
+$app->options('/{routes:.*}', function (Request $request, Response $response) {
+    return $response;
+});
+
+// Include routes
 require __DIR__ . '/../src/Routes/api.php';
 
 // Error middleware should be added last

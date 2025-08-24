@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'mattru/nursing-app',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => 'dbe262a4f3e91e293e041bb361845eef2fe1f739',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => false,
         ),
         'mattru/nursing-app' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'dbe262a4f3e91e293e041bb361845eef2fe1f739',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -83,9 +83,9 @@
             'dev_requirement' => false,
         ),
         'php-di/php-di' => array(
-            'pretty_version' => '7.0.10',
-            'version' => '7.0.10.0',
-            'reference' => '0d1ed64126577e9a095b3204dcaee58cf76432c2',
+            'pretty_version' => '7.1.1',
+            'version' => '7.1.1.0',
+            'reference' => 'f88054cc052e40dbe7b383c8817c19442d480352',
             'type' => 'library',
             'install_path' => __DIR__ . '/../php-di/php-di',
             'aliases' => array(),

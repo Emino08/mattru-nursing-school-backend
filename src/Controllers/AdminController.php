@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers;
 
+use PDO;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\User;
@@ -67,6 +68,166 @@ class AdminController
         $this->auditLog->create($user->id, 'create_user', ['user_id' => $userId]);
         $response->getBody()->write(json_encode(['message' => 'User created']));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+    }
+
+    public function getPermissions($request, $response): \Psr\Http\Message\ResponseInterface
+    {
+        $data = [
+            'roles' => [
+                'principal' => ['approve_interview', 'issue_offer', 'view_analytics'],
+                'finance'   => ['view_analytics'],
+                'it'        => ['create_user', 'view_analytics'],
+                'registrar' => ['view_applications']
+            ]
+        ];
+        $response->getBody()->write(json_encode($data));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Get PIN statistics
+     * GET /admin/pin-statistics
+     */
+    public function getPinStatistics($request, $response)
+    {
+        try {
+            $container = $this->getContainer();
+            $db = $container->get('db');
+
+            $stmt = $db->query('SELECT * FROM pin_statistics');
+            $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'statistics' => $stats
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'error' => 'Failed to retrieve PIN statistics'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    /**
+     * Get PIN usage audit
+     * GET /admin/pin-audit
+     */
+    public function getPinAudit($request, $response)
+    {
+        try {
+            $container = $this->getContainer();
+            $db = $container->get('db');
+
+            $params = $request->getQueryParams();
+            $limit = isset($params['limit']) ? (int)$params['limit'] : 100;
+            $offset = isset($params['offset']) ? (int)$params['offset'] : 0;
+
+            $stmt = $db->prepare(
+                'SELECT pua.*, p.transaction_reference, p.depositor_name, u.email 
+             FROM pin_usage_audit pua 
+             LEFT JOIN payments p ON pua.payment_id = p.id 
+             LEFT JOIN users u ON pua.user_id = u.id 
+             ORDER BY pua.created_at DESC 
+             LIMIT ? OFFSET ?'
+            );
+            $stmt->execute([$limit, $offset]);
+            $audit = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'audit' => $audit,
+                'pagination' => [
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'error' => 'Failed to retrieve PIN audit'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    /**
+     * Manually expire PIN
+     * POST /admin/expire-pin
+     */
+    public function expirePin($request, $response)
+    {
+        $container = $this->getContainer();
+        $db = $container->get('db');
+        $data = $request->getParsedBody();
+
+        if (empty($data['pin'])) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'error' => 'PIN is required'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(422);
+        }
+
+        try {
+            $stmt = $db->prepare('UPDATE payments SET payment_status = ? WHERE application_fee_pin = ?');
+            $result = $stmt->execute(['expired', $data['pin']]);
+
+            if ($stmt->rowCount() > 0) {
+                $response->getBody()->write(json_encode([
+                    'success' => true,
+                    'message' => 'PIN expired successfully'
+                ]));
+            } else {
+                $response->getBody()->write(json_encode([
+                    'success' => false,
+                    'error' => 'PIN not found'
+                ]));
+            }
+            return $response->withHeader('Content-Type', 'application/json');
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'error' => 'Failed to expire PIN'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    /**
+     * Run cleanup expired PINs
+     * POST /admin/cleanup-expired-pins
+     */
+    public function cleanupExpiredPins($request, $response)
+    {
+        try {
+            $container = $this->getContainer();
+            $db = $container->get('db');
+
+            $stmt = $db->prepare('CALL CleanupExpiredPins()');
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'message' => 'Cleanup completed',
+                'expired_count' => $result['expired_pins_count'] ?? 0
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'error' => 'Failed to run cleanup'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
     }
 
     public function approveInterview(Request $request, Response $response): Response
