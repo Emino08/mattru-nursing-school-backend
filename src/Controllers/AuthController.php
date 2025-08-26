@@ -352,11 +352,6 @@ class AuthController
             $title = 'Email Verified Successfully!';
             $message = 'Your email has been verified. You can now log in to your account.';
             $icon = '✅';
-        } elseif ($verificationResult === 'already_verified') {
-            $status = 'info';
-            $title = 'Already Verified';
-            $message = 'Your email has already been verified. You can log in to your account.';
-            $icon = 'ℹ️';
         }
 
         $currentYear = date('Y');
